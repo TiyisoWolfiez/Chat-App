@@ -3,6 +3,8 @@ This is a Chat app socket io node js
 
 # How to Setup
 - sudo apt install nodejs npm
+- sudo npm init -y
+- sudo npm install express socket.io --save
 
 ## Verification of the installation:
   - node -v
