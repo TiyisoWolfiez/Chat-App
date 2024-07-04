@@ -8,7 +8,7 @@ This is a Chat app socket io node js
   - node -v
   - npm -v
 
-**JavaScript Code Snippet**:
+**Random JavaScript Code Snippet**:
   ```javascript
   const app = express();
   const server = require("http").createServer(app);
