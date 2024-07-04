@@ -14,7 +14,7 @@ body{
     width: 100%;
     height: 100%;
     max-width: 600px;
-    background: #fff;
+    background: #eee;
     border-left: 1px solid #eee;
     border-right: 1px solid #eee;
 }
@@ -105,8 +105,10 @@ body{
 }
 .chat-screen .messages .message > div {
     max-width: 80%;
-    background:  #fff;
+    /* background:  #8abaf8; */
+    background: linear-gradient( 180deg,rgba(139, 47, 184, 1) 0%, rgba(103, 88, 205, 1) 51%,rgba(89, 116, 219, 1) 92%);
     box-shadow: 0px 0px 20px 5px rgba(0,0,0,0.05);
+    border-radius: 0.5rem 0.2rem 1rem 0.5rem;
     padding: 10px;
 }
 .chat-screen .messages .message.my-message {
@@ -117,7 +119,7 @@ body{
 }
 .chat-screen .messages .message .name {
     font-size: 10px;
-    color: #555;
+    color: #f8f6f6;
     margin-bottom: 5px;
 }
 .chat-screen .messages .message .text {
