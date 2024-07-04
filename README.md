@@ -21,6 +21,11 @@ This is a real-time chat application built using Node.js and Socket.io. The app 
 ## Verification of the installation:
   - node -v
   - npm -v
+### Installation
+1. Clone the repository:
+   ```sh
+   gh repo clone TiyisoWolfiez/Chat-App
+
 
 **Random JavaScript Code Snippet**:
   ```javascript
