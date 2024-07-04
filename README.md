@@ -9,9 +9,10 @@ This is a Chat app socket io node js
   - npm -v
 
 **JavaScript Code Snippet**:
-  ```markdown
-  ``` const app = express();
+  ```
+  const app = express();
   const server = require("http").createServer(app);
   const io = require("socket.io")(server);
   app.use(express.static(path.join(__dirname+"/public")));
+  ``` 
 
