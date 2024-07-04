@@ -66,6 +66,11 @@ body{
     outline: none;
     border: none;
 }
+.screen .form-input button:hover {
+    box-shadow: 0 0 3px rgb(38, 47, 47),
+    0 0 25px rgb(38, 47, 47), 0 0 50px rgb(38, 47, 47),
+    0 0 100px rgb(38, 47, 47), 0 0 200px rgb(38, 47, 47);
+}
 .chat-screen .header {
     background: #111;
     height: 50px;
