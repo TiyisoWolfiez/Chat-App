@@ -3,6 +3,14 @@
     padding: 0px;
     box-sizing: border-box;
 }
+:root{
+    --primary-color: #eee;
+    --secondary-color: #111;
+}
+.dark-theme{
+    --primary-color: #111;
+    --secondary-color: #eee;
+}
 body{
     font-family: 'Roboto', sans-serif;
     height: 100vh;
