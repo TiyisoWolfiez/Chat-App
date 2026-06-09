@@ -1,0 +1,5 @@
+node_modules/
+.env
+chatos.db
+chatos.db-shm
+chatos.db-wal

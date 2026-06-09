@@ -3,52 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatroom</title>
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>ChatOS</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="app">
-        <div class="screen join-screen active">
-            <div class="form">
-                <h2>Join Chatroom</h2>
-                <div class="form-input">
-                    <label>Username</label>
-                    <input type="text" id="username">
-                </div>
-                <div class="form-input">
-                    <button id="join-user">Join</button>
-                </div>
+
+    <div id="chat-root">
+
+    <!-- Boot screen -->
+    <div id="boot-screen">
+        <div id="boot-logo">CHATOS</div>
+        <div class="boot-line" id="bl0"><span class="dim">[  0.000]</span> Kernel booting... <span class="ok">OK</span></div>
+        <div class="boot-line" id="bl1"><span class="dim">[  0.041]</span> Loading WebSocket daemon... <span class="ok">OK</span></div>
+        <div class="boot-line" id="bl2"><span class="dim">[  0.103]</span> Initializing message broker... <span class="ok">OK</span></div>
+        <div class="boot-line" id="bl3"><span class="dim">[  0.178]</span> Mounting channel registry... <span class="ok">OK</span></div>
+        <div class="boot-line" id="bl4"><span class="dim">[  0.254]</span> Starting authentication layer... <span class="warn">PENDING</span></div>
+        <div class="boot-line" id="bl5"><span class="dim">[  0.312]</span> Connection established. <span class="ok">READY</span> <span class="cursor-blink"></span></div>
+    </div>
+
+    <!-- Main app -->
+    <div id="app-main">
+
+        <!-- Icon sidebar -->
+        <div id="sidebar">
+        <div class="sidebar-icon active" title="General">GN</div>
+        <div class="sidebar-icon" title="Dev">DV<div class="dot-badge"></div></div>
+        <div class="sidebar-sep"></div>
+        <div class="sidebar-icon" title="Music">MX</div>
+        <div class="sidebar-icon" title="Gaming">GM</div>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-icon" style="font-size:14px;" title="Settings">⚙</div>
+        </div>
+
+        <!-- Channels panel -->
+        <div id="channels-panel">
+        <div class="panel-header">Workspace // ChatOS</div>
+        <div style="height:8px;"></div>
+        <div style="padding:0 12px 4px;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Channels</div>
+
+        <!-- data-room ties each item to a server room name -->
+        <div class="channel-item active"  data-room="general">  <span class="ch-prefix">#</span> general</div>
+        <div class="channel-item"         data-room="dev-chat"> <span class="ch-prefix">#</span> dev-chat <span class="unread-dot"></span></div>
+        <div class="channel-item"         data-room="random">   <span class="ch-prefix">#</span> random</div>
+        <div class="channel-item"         data-room="design">   <span class="ch-prefix">#</span> design</div>
+
+        <div style="padding:8px 12px 4px;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:6px;">Direct</div>
+        <div class="channel-item"><span style="color:var(--green-dim);font-size:10px;">▶</span> wolfiez</div>
+        <div class="channel-item"><span style="color:var(--amber);font-size:10px;">▶</span> kevin</div>
+
+        <div class="online-section">
+            <div class="online-header">Online — 0</div>
+        </div>
+        </div>
+
+        <!-- Chat area -->
+        <div id="chat-area">
+        <div id="chat-header">
+            <span class="header-channel"># general</span>
+            <span class="header-sep">|</span>
+            <span class="header-desc">main chat — be excellent to each other</span>
+            <div class="header-actions">
+            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/users'; document.getElementById('msg-input').focus()">/users</button>
+            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/clear'; document.getElementById('msg-input').focus()">/clear</button>
+            <button class="hdr-btn" id="exit-btn">exit</button>
             </div>
         </div>
 
-        <div class="screen chat-screen">
-            <div class="header">
-                <div class="logo">Chatroom</div>
-                <button id="exit-chat">Exit</button>
+        <div id="messages"></div>
+
+        <div class="typing-indicator" id="typing-bar">
+            <span class="typing-dots"><span></span><span></span><span></span></span>
+            <span id="typing-text" style="color:var(--muted2);font-size:10px;"></span>
+        </div>
+
+        <div id="input-area">
+            <div class="input-prompt">
+            <span class="prompt-label">
+                <span class="at" id="prompt-user">guest</span><span class="at">@</span><span class="host">chat</span><span class="sep">:</span><span class="path">~/#general</span><span style="color:var(--amber);margin-left:4px;">$</span>
+            </span>
+            <input id="msg-input" type="text" placeholder="type a message..." autocomplete="off" spellcheck="false" />
+            <button id="send-btn">↵ send</button>
             </div>
-            <div class="messages">
+            <div class="cmd-hint">
+            <span class="cmd-chip">/help</span>
+            <span class="cmd-chip">/users</span>
+            <span class="cmd-chip">/clear</span>
+            <span class="cmd-chip">/status</span>
             </div>
-            <div class="typebox">
-                <input type="text" id="message-input" placeholder="Type your message...">
-                <button id="send-message">Send</button>
-            </div>
+        </div>
         </div>
     </div>
 
-    <script type="text/javascript" src="socket.io/socket.io.js"></script>
-    <script type="text/javascript" src="app.js"></script>
-    <script>
-        var icon = document.getElementById("icon");
+    <!-- Join overlay -->
+    <div id="join-overlay">
+        <div class="join-card">
+        <div class="jc-label">// ChatOS v2.4.1</div>
+        <div class="jc-title">Identify yourself</div>
+        <div class="jc-sub">Enter a username to connect to the server.<br>No account required.</div>
+        <input id="join-input" type="text" placeholder="username" maxlength="20" autocomplete="off" spellcheck="false" />
+        <div id="join-error" style="display:none;font-size:10px;color:var(--red);margin:-6px 0 8px;"></div>
+        <button id="join-btn">connect —&gt;</button>
+        </div>
+    </div>
 
-        icon.onclick = function(){
-            document.body.classList.toggle("dark-theme");
-            if(document.body.classList.contains("dark-theme")){
-                icon.src = "../dark theme icon/moon.png";
-            } 
-            else {
-                icon.src = "../dark theme icon/sun.png";
-            }
-        }
-    </script>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
