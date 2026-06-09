@@ -3,8 +3,13 @@
     const nameColors = ['name-amber', 'name-green', 'name-blue', 'name-red'];
     let userName = '';
     let currentRoom = 'general';
+    let unreadCounts = {
+        general: 0,
+        'dev-chat': 0,
+        random: 0,
+        design: 0
+    };
 
-    /* ── DOM refs ── */
     const messages    = document.getElementById('messages');
     const msgInput    = document.getElementById('msg-input');
     const typingBar   = document.getElementById('typing-bar');
@@ -14,7 +19,41 @@
     const joinInput   = document.getElementById('join-input');
     const joinError   = document.getElementById('join-error');
 
-    /* ── Helpers ── */
+    localStorage.setItem("chatos_user", userName);
+
+    function incrementUnread(room) {
+        if (room === currentRoom && !document.hidden) return;
+
+        unreadCounts[room] = (unreadCounts[room] || 0) + 1;
+        updateRoomBadge(room);
+    }
+
+    function clearUnread(room) {
+        unreadCounts[room] = 0;
+        updateRoomBadge(room);
+    }
+
+    function updateRoomBadge(room) {
+        const channel = document.querySelector(`.channel-item[data-room="${room}"]`);
+        if (!channel) return;
+
+        let badge = channel.querySelector(".unread-dot");
+
+        if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "unread-dot";
+            channel.appendChild(badge);
+        }
+
+        if (unreadCounts[room] > 0) {
+            badge.classList.add("active");
+            badge.textContent = unreadCounts[room];
+        } else {
+            badge.classList.remove("active");
+            badge.textContent = "";
+        }
+    }
+
     function getTime() {
         return new Date().toLocaleTimeString('en-GB', {
         hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -33,7 +72,6 @@
         return d.innerHTML;
     }
 
-    /* ── Render ── */
     function appendMessage(type, data, timestamp) {
         const row = document.createElement('div');
         const ts  = timestamp || getTime();
@@ -68,7 +106,6 @@
         messages.innerHTML = '';
     }
 
-    /* ── Typing indicator ── */
     let typingTimeout;
     function showTyping(name) {
         typingText.textContent = name + ' is typing';
@@ -77,7 +114,9 @@
         typingTimeout = setTimeout(() => typingBar.classList.remove('visible'), 2500);
     }
 
-    /* ── Boot sequence ── */
+    const saved = localStorage.getItem("chatos_user");
+    if (saved) { joinInput.value = saved; doJoin(); }
+
     function runBoot() {
         const bootLines  = ['bl0','bl1','bl2','bl3','bl4','bl5'];
         const logo       = document.getElementById('boot-logo');
@@ -99,14 +138,12 @@
         }, 400 + bootLines.length * 280 + 600);
     }
 
-    /* ── Join ── */
     document.getElementById('join-btn').addEventListener('click', doJoin);
     joinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
 
     function doJoin() {
         const val = joinInput.value.trim();
         if (!val) return;
-        // Username format: alphanum + underscores only
         if (!/^[a-zA-Z0-9_]{2,20}$/.test(val)) {
         showJoinError('2–20 chars, letters/numbers/underscores only.');
         return;
@@ -118,7 +155,6 @@
         if (joinError) { joinError.textContent = msg; joinError.style.display = 'block'; }
     }
 
-    /* ── Channel switching ── */
     document.querySelectorAll('.channel-item[data-room]').forEach(item => {
         item.addEventListener('click', () => {
         const room = item.dataset.room;
@@ -136,7 +172,6 @@
         });
     });
 
-    /* ── Send message ── */
     document.getElementById('send-btn').addEventListener('click', sendMsg);
     msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMsg(); });
 
@@ -145,13 +180,11 @@
         if (!val || !userName) return;
         if (val.startsWith('/')) { handleCommand(val); msgInput.value = ''; return; }
 
-        // Optimistic render (own message)
         appendMessage('msg', { username: userName, text: val });
         socket.emit('chat', { username: userName, text: val });
         msgInput.value = '';
     }
 
-    /* ── Typing emit (debounced) ── */
     let typingEmitTimeout;
     msgInput.addEventListener('input', () => {
         if (!userName) return;
@@ -161,7 +194,6 @@
         }, 300);
     });
 
-    /* ── Slash commands ── */
     function handleCommand(cmd) {
         const c = cmd.toLowerCase().trim();
         if (c === '/clear') {
@@ -177,13 +209,10 @@
         appendMessage('system', `Unknown command: <span style="color:var(--red)">${sanitize(cmd)}</span>. Try /help`);
         }
     }
-
-    /* ── Command chips ── */
     document.querySelectorAll('.cmd-chip').forEach(chip => {
         chip.addEventListener('click', () => { msgInput.value = chip.textContent; msgInput.focus(); });
     });
 
-    /* ── Exit ── */
     document.getElementById('exit-btn').addEventListener('click', () => {
         if (!userName) return;
         socket.emit('exituser', userName);
@@ -195,20 +224,24 @@
         joinOverlay.style.opacity = '1';
     });
 
-    /* ── Socket events ── */
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            const badge = document.querySelector(".dot-badge");
 
-    // Join approved — server sends back history
+            badge.classList.remove("active");
+            badge.style.display = "none";
+        }
+    });
+
     socket.on('history', function (msgs) {
         clearMessages();
         userName = joinInput.value.trim() || userName;
         promptUser.textContent = userName;
 
-        // Hide join overlay
         joinOverlay.style.opacity    = '0';
         joinOverlay.style.transition = 'opacity 0.3s';
         setTimeout(() => joinOverlay.style.display = 'none', 300);
 
-        // Replay history
         msgs.forEach(m => {
         if (m.type === 'system') appendMessage('system', m.text, m.timestamp);
         else appendMessage('msg', m, m.timestamp);
@@ -217,27 +250,28 @@
         msgInput.focus();
     });
 
-    // Username taken or other join error
     socket.on('join_error', function (msg) {
         showJoinError(msg);
     });
 
-    // Incoming chat from another user
     socket.on('chat', function (message) {
+        if (document.hidden) {
+            const badge = document.querySelector(".dot-badge");
+
+            badge.classList.add("active");
+            badge.style.display = "block";
+        }
         appendMessage('msg', message, message.timestamp);
     });
 
-    // System announcements (join/leave/etc)
     socket.on('update', function (text) {
         appendMessage('system', text);
     });
 
-    // Typing indicator
     socket.on('typing', function (name) {
         if (name !== userName) showTyping(name);
     });
 
-    // User list (response to /users or room events)
     socket.on('userlist', function (names) {
         const panel = document.querySelector('.online-section');
         if (!panel) return;

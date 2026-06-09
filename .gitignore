@@ -3,3 +3,4 @@ node_modules/
 chatos.db
 chatos.db-shm
 chatos.db-wal
+test-db.js
