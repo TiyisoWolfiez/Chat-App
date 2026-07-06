@@ -262,10 +262,18 @@ body {
 
 .hdr-btn {
     font-size: 10px; color: var(--muted2); background: none; border: none;
-    cursor: pointer; font-family: inherit; padding: 3px 6px;
-    border-radius: 4px; transition: all 0.15s;
+    cursor: pointer; font-family: inherit; padding: 3px 10px 3px 16px;
+    border-radius: 4px; transition: all 0.15s; position: relative;
+}
+.hdr-btn::before {
+    content: '›';
+    position: absolute;
+    left: 8px;
+    color: var(--muted);
+    font-size: 10px;
 }
 .hdr-btn:hover { color: var(--amber); background: var(--surface); }
+.hdr-btn:hover::before { color: var(--amber); }
 
 /* ── Messages ── */
 #messages {
@@ -315,6 +323,44 @@ body {
     padding: 2px 4px;
     border-radius: 4px;
     font-size: 11px;
+}
+
+.reaction-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.reaction-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: var(--muted2);
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.reaction-btn:hover {
+    color: var(--text);
+    border-color: var(--amber);
+    background: rgba(245,185,66,0.12);
+}
+
+.reaction-btn.active {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: rgba(245,185,66,0.18);
+}
+
+.reaction-count {
+    font-size: 10px;
+    opacity: 0.8;
 }
 
 .msg-row.system-row { padding: 6px 16px; opacity: 0; animation: msgIn 0.25s forwards; }

@@ -50,6 +50,10 @@ Once connected, users can communicate instantly with others through a modern ter
 *  Multi-user support
 *  Instant message broadcasting
 *  Multiple chat channels
+*  Direct messages between users
+*  Message reactions with quick emoji taps
+*  Inline code and fenced code block rendering
+*  `/theme` command with dark/light/dracula options
 *  Live online users list
 *  Terminal command-style input prompt
 *  Animated boot sequence
@@ -129,6 +133,17 @@ http://localhost:5000
 ```
 
 Open multiple browser tabs or windows to simulate multiple users chatting in real time.
+
+# Deployment
+
+For Railway deployment, this app works as a single service using SQLite. Railway can run the Express backend and keep the database file in service storage.
+
+1. Create a Railway project.
+2. Set the service port to `5000` or use the default Railway `PORT` environment variable.
+3. Add a `DB_PATH` environment variable if you want to customize the SQLite file location (defaults to `./chatos.db`).
+4. Deploy the repository and Railway will serve the backend and frontend together.
+
+> Note: SQLite works best in Railway for low-traffic demos and simple persistence. For production, Railway Postgres is a stronger option.
 
 ---
 

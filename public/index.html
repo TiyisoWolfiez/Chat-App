@@ -51,6 +51,10 @@
 
         <div style="padding:8px 12px 4px;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-top:6px;">Direct</div>
         <div id="dm-list"></div>
+        <div class="online-section" style="padding:8px 12px; border-top:1px solid var(--border);">
+            <div class="online-header">Online — 0</div>
+            <div class="online-list"></div>
+        </div>
         </div>
 
         <!-- Chat area -->
@@ -60,9 +64,9 @@
             <span class="header-sep">|</span>
             <span class="header-desc">main chat — be excellent to each other</span>
             <div class="header-actions">
-            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/users'; document.getElementById('msg-input').focus()">/users</button>
-            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/clear'; document.getElementById('msg-input').focus()">/clear</button>
-            <button class="hdr-btn" id="exit-btn">exit</button>
+            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/users'; document.getElementById('msg-input').focus()">⌘ users</button>
+            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/clear'; document.getElementById('msg-input').focus()">⌫ clear</button>
+            <button class="hdr-btn" id="exit-btn">⎋ exit</button>
             </div>
         </div>
 
@@ -106,6 +110,6 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

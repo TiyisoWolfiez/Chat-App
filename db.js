@@ -32,6 +32,15 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS idx_messages_room
         ON messages (room, created_at);
+
+    CREATE TABLE IF NOT EXISTS message_reactions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id  INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        username    TEXT    NOT NULL,
+        emoji       TEXT    NOT NULL,
+        created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(message_id, username, emoji)
+    );
 `);
 
 const seedRoom = db.prepare(
@@ -64,8 +73,8 @@ function saveMessage({ room, username, text, type = "chat" }) {
     return db.prepare("SELECT * FROM messages WHERE id = ?").get(info.lastInsertRowid);
 }
 
-function getHistory(room, limit = 50) {
-    return db
+function getHistory(room, username = '', limit = 50) {
+    const messages = db
         .prepare(`
         SELECT * FROM (
             SELECT * FROM messages
@@ -75,8 +84,70 @@ function getHistory(room, limit = 50) {
         ) ORDER BY created_at ASC
         `)
         .all(room, limit);
+
+    if (!messages.length) return messages;
+
+    const ids = messages.map((m) => m.id);
+    const placeholders = ids.map(() => '?').join(',');
+    const reactionRows = db.prepare(`
+        SELECT message_id,
+               emoji,
+               COUNT(*) AS count,
+               SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
+        FROM message_reactions
+        WHERE message_id IN (${placeholders})
+        GROUP BY message_id, emoji
+    `).all(username, ...ids);
+
+    const reactionMap = {};
+    reactionRows.forEach((row) => {
+        if (!reactionMap[row.message_id]) reactionMap[row.message_id] = [];
+        reactionMap[row.message_id].push({
+            emoji: row.emoji,
+            count: row.count,
+            mine: !!row.mine,
+        });
+    });
+
+    return messages.map((m) => ({
+        ...m,
+        reactions: reactionMap[m.id] || [],
+    }));
+}
+
+function getMessageById(id) {
+    return db.prepare("SELECT * FROM messages WHERE id = ?").get(id);
+}
+
+function toggleReaction(messageId, username, emoji) {
+    const exists = db
+        .prepare("SELECT 1 FROM message_reactions WHERE message_id = ? AND username = ? AND emoji = ?")
+        .get(messageId, username, emoji);
+
+    if (exists) {
+        db.prepare("DELETE FROM message_reactions WHERE message_id = ? AND username = ? AND emoji = ?")
+            .run(messageId, username, emoji);
+    } else {
+        db.prepare("INSERT INTO message_reactions (message_id, username, emoji) VALUES (?, ?, ?)")
+            .run(messageId, username, emoji);
     }
 
+    return db
+        .prepare(`
+            SELECT emoji,
+                   COUNT(*) AS count,
+                   SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
+            FROM message_reactions
+            WHERE message_id = ?
+            GROUP BY emoji
+        `)
+        .all(username, messageId)
+        .map((row) => ({
+            emoji: row.emoji,
+            count: row.count,
+            mine: !!row.mine,
+        }));
+}
 
 function getRooms() {
   return db.prepare("SELECT * FROM rooms ORDER BY id ASC").all();
@@ -88,4 +159,6 @@ module.exports = {
     saveMessage,
     getHistory,
     getRooms,
+    getMessageById,
+    toggleReaction,
 };
