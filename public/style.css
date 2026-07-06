@@ -24,6 +24,38 @@ body {
     overflow: hidden;
 }
 
+:root[data-theme='light'] {
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --surface2: #f8fafc;
+    --border: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --muted2: #9ca3af;
+    --amber: #b45309;
+    --amber-dim: #f59e0b;
+    --green: #16a34a;
+    --green-dim: #4d7c0f;
+    --red: #dc2626;
+    --blue: #2563eb;
+}
+
+:root[data-theme='dracula'] {
+    --bg: #282a36;
+    --surface: #21222c;
+    --surface2: #282a36;
+    --border: #44475a;
+    --text: #f8f8f2;
+    --muted: #6272a4;
+    --muted2: #8be9fd;
+    --amber: #ffb86c;
+    --amber-dim: #ff79c6;
+    --green: #50fa7b;
+    --green-dim: #8be9fd;
+    --red: #ff5555;
+    --blue: #8be9fd;
+}
+
 #chat-root {
     width: 100%;
     height: 100vh;
@@ -178,7 +210,17 @@ body {
 .channel-item:hover  { color: var(--text); background: rgba(255,255,255,0.03); }
 .channel-item.active { color: var(--amber); border-left-color: var(--amber); background: rgba(245,185,66,0.06); }
 .channel-item .ch-prefix  { color: var(--muted); font-size: 10px; }
-.channel-item .unread-dot { margin-left: auto; width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+.channel-item .unread-dot {
+    margin-left: auto;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+    display: none;
+}
+.channel-item .unread-dot.active {
+    display: inline-flex;
+}
 
 .online-section { margin-top: auto; padding: 8px 12px; border-top: 1px solid var(--border); }
 .online-header  { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
@@ -255,6 +297,25 @@ body {
 .msg-body { flex: 1; min-width: 0; }
 .msg-name { font-size: 10px; font-weight: 600; margin-bottom: 2px; }
 .msg-text { font-size: 12px; color: var(--text); line-height: 1.55; word-break: break-word; }
+
+.code-block {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    margin: 8px 0;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+.msg-text code {
+    background: rgba(255,255,255,0.08);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 11px;
+}
 
 .msg-row.system-row { padding: 6px 16px; opacity: 0; animation: msgIn 0.25s forwards; }
 

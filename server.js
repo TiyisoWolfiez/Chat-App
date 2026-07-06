@@ -11,10 +11,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const users = new Map();
 
-const history = new Map();
-
 const DEFAULT_ROOMS = ["general", "dev-chat", "random", "design"];
-DEFAULT_ROOMS.forEach(r => history.set(r, []));
 
 function getTime() {
     return new Date().toLocaleTimeString("en-GB", {
@@ -22,11 +19,33 @@ function getTime() {
     });
 }
 
-function pushHistory(room, message) {
-    const buf = history.get(room) || [];
-    buf.push(message);
-    if (buf.length > 50) buf.shift();
-    history.set(room, buf);
+function createDmRoom(userA, userB) {
+    if (!userA || !userB || userA === userB) return null;
+    const [first, second] = [userA, userB].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+    return `dm:${first}:${second}`;
+}
+
+function parseDmRoom(room) {
+    const parts = room.split(':');
+    if (parts.length !== 3 || parts[0] !== 'dm') return null;
+    const [_, a, b] = parts;
+    if (!/^[a-zA-Z0-9_]{2,20}$/.test(a) || !/^[a-zA-Z0-9_]{2,20}$/.test(b)) return null;
+    return [a, b];
+}
+
+function canJoinRoom(room, username) {
+    if (!room) return false;
+    const dmParts = parseDmRoom(room);
+    if (dmParts) {
+        return dmParts.includes(username);
+    }
+    return DEFAULT_ROOMS.includes(room);
+}
+
+function getDmPeer(room, username) {
+    const dmParts = parseDmRoom(room);
+    if (!dmParts) return null;
+    return dmParts[0] === username ? dmParts[1] : dmParts[1] === username ? dmParts[0] : null;
 }
 
 function systemMsg(text) {
@@ -39,13 +58,14 @@ function chatMsg(username, text) {
 
 
 io.on("connection", function (socket) {
-
-
     socket.on("newuser", function ({ username, room = "general" }) {
-
         if (users.has(username)) {
             socket.emit("join_error", "Username already taken. Choose another.");
             return;
+        }
+
+        if (!canJoinRoom(room, username)) {
+            room = "general";
         }
 
         users.set(username, socket.id);
@@ -53,41 +73,41 @@ io.on("connection", function (socket) {
         socket.data.room     = room;
 
         socket.join(room);
+        registerUser(username);
 
-        const buf = history.get(room) || [];
-        socket.emit("history", getHistory(room, 50));;
+        socket.emit("history", getHistory(room, 50));
 
         const msg = systemMsg(`<span class="name-amber">${username}</span> connected`);
-        pushHistory(room, msg);
+        saveMessage({ room, username: 'system', text: msg.text, type: 'system' });
         io.to(room).emit("update", msg.text);
 
         broadcastUserList(room);
+        broadcastGlobalOnline();
 
-        console.log(`[+] ${username} joined #${room}`);
+        console.log(`[+] ${username} joined ${room}`);
     });
 
     socket.on("switchroom", function ({ room }) {
         const { username, room: prevRoom } = socket.data;
-        if (!username) return;
+        if (!username || !room || !canJoinRoom(room, username)) return;
 
         socket.leave(prevRoom);
         const leaveMsg = systemMsg(`<span class="name-amber">${username}</span> left`);
-        pushHistory(prevRoom, leaveMsg);
+        saveMessage({ room: prevRoom, username: 'system', text: leaveMsg.text, type: 'system' });
         io.to(prevRoom).emit("update", leaveMsg.text);
         broadcastUserList(prevRoom);
 
         socket.data.room = room;
         socket.join(room);
 
-        const buf = history.get(room) || [];
-        socket.emit("history", buf);
+        socket.emit("history", getHistory(room, 50));
 
         const joinMsg = systemMsg(`<span class="name-amber">${username}</span> connected`);
-        pushHistory(room, joinMsg);
+        saveMessage({ room, username: 'system', text: joinMsg.text, type: 'system' });
         io.to(room).emit("update", joinMsg.text);
         broadcastUserList(room);
 
-        console.log(`[~] ${username} switched to #${room}`);
+        console.log(`[~] ${username} switched to ${room}`);
     });
 
     socket.on("chat", function ({ username, text }) {
@@ -95,10 +115,9 @@ io.on("connection", function (socket) {
         if (!room || !username || !text.trim()) return;
 
         const msg = chatMsg(username, text.trim());
-        pushHistory(room, msg);
-
         socket.to(room).emit("chat", msg);
-        const saved = saveMessage({ room, username, text: text.trim(), type: "chat" });
+        io.emit("roomnotify", { room });
+        saveMessage({ room, username, text: text.trim(), type: "chat" });
     });
 
     socket.on("typing", function (username) {
@@ -131,13 +150,13 @@ function handleDisconnect(socket, username) {
     if (room) {
         socket.leave(room);
         const msg = systemMsg(`<span class="name-amber">${username}</span> disconnected`);
-        pushHistory(room, msg);
+        saveMessage({ room, username: 'system', text: msg.text, type: 'system' });
         io.to(room).emit("update", msg.text);
         broadcastUserList(room);
+        broadcastGlobalOnline();
     }
 
     console.log(`[-] ${username} disconnected`);
-    removeUser(username);
 }
 
 function getRoomUsers(room) {
@@ -152,6 +171,11 @@ function getRoomUsers(room) {
 
 function broadcastUserList(room) {
     io.to(room).emit("userlist", getRoomUsers(room));
+}
+
+function broadcastGlobalOnline() {
+    const names = [...users.keys()];
+    io.emit("globalonline", names);
 }
 
 const PORT = process.env.PORT || 5000;

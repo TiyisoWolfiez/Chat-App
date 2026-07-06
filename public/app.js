@@ -1,6 +1,9 @@
 (function () {
     const socket = io();
     const nameColors = ['name-amber', 'name-green', 'name-blue', 'name-red'];
+    const savedUser  = localStorage.getItem('chatos_user');
+    const savedTheme = localStorage.getItem('chatos_theme') || 'dark';
+
     let userName = '';
     let currentRoom = 'general';
     let unreadCounts = {
@@ -18,8 +21,6 @@
     const joinOverlay = document.getElementById('join-overlay');
     const joinInput   = document.getElementById('join-input');
     const joinError   = document.getElementById('join-error');
-
-    localStorage.setItem("chatos_user", userName);
 
     function incrementUnread(room) {
         if (room === currentRoom && !document.hidden) return;
@@ -72,6 +73,53 @@
         return d.innerHTML;
     }
 
+    function renderMessageText(text) {
+        let html = sanitize(text);
+        html = html.replace(/```([\s\S]*?)```/g, '<pre class="code-block">$1</pre>');
+        html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        return html;
+    }
+
+    function formatRoomLabel(room) {
+        if (!room) return '#general';
+        const parts = room.split(':');
+        if (parts.length === 3 && parts[0] === 'dm') {
+            const peer = parts[1] === userName ? parts[2] : parts[1];
+            return `@${peer}`;
+        }
+        return `# ${room}`;
+    }
+
+    function formatRoomDescription(room) {
+        if (!room) return 'main chat — be excellent to each other';
+        const parts = room.split(':');
+        if (parts.length === 3 && parts[0] === 'dm') {
+            const peer = parts[1] === userName ? parts[2] : parts[1];
+            return `private conversation with ${peer}`;
+        }
+        const desc = {
+            general: 'main chat — be excellent to each other',
+            'dev-chat': 'code, tools, and tech talk',
+            random: 'anything goes',
+            design: 'ui, ux, and aesthetics'
+        };
+        return desc[room] || 'private room';
+    }
+
+    function applyTheme(theme) {
+        const allowed = ['dark', 'light', 'dracula'];
+        if (!allowed.includes(theme)) return;
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem('chatos_theme', theme);
+    }
+
+    function getDmRoom(a, b) {
+        const [first, second] = [a, b].sort((x, y) => x.localeCompare(y, 'en', { sensitivity: 'base'}));
+        return `dm:${first}:${second}`;
+    }
+
+    applyTheme(savedTheme);
+
     function appendMessage(type, data, timestamp) {
         const row = document.createElement('div');
         const ts  = timestamp || getTime();
@@ -94,7 +142,7 @@
             <span class="msg-ts">${ts}</span>
             <div class="msg-body">
             <div class="msg-name ${colorClass}">${sanitize(data.username)}</div>
-            <div class="msg-text">${sanitize(data.text)}</div>
+            <div class="msg-text">${renderMessageText(data.text)}</div>
             </div>`;
         }
 
@@ -114,7 +162,7 @@
         typingTimeout = setTimeout(() => typingBar.classList.remove('visible'), 2500);
     }
 
-    const saved = localStorage.getItem("chatos_user");
+    const saved = savedUser;
     if (saved) { joinInput.value = saved; doJoin(); }
 
     function runBoot() {
@@ -148,6 +196,7 @@
         showJoinError('2–20 chars, letters/numbers/underscores only.');
         return;
         }
+        localStorage.setItem('chatos_user', val);
         socket.emit('newuser', { username: val, room: currentRoom });
     }
 
@@ -155,20 +204,26 @@
         if (joinError) { joinError.textContent = msg; joinError.style.display = 'block'; }
     }
 
+    function selectRoom(room, item = null) {
+        if (!room || room === currentRoom || !userName) return;
+
+        document.querySelectorAll('.channel-item').forEach(c => c.classList.remove('active'));
+        if (item) item.classList.add('active');
+
+        currentRoom = room;
+        document.querySelector('.header-channel').textContent = formatRoomLabel(room);
+        document.querySelector('.header-desc').textContent = formatRoomDescription(room);
+        promptUser.parentElement.querySelector('.path').textContent = `~/${formatRoomLabel(room)}`;
+
+        clearUnread(room);
+        clearMessages();
+        socket.emit('switchroom', { room });
+    }
+
     document.querySelectorAll('.channel-item[data-room]').forEach(item => {
         item.addEventListener('click', () => {
         const room = item.dataset.room;
-        if (room === currentRoom || !userName) return;
-
-        document.querySelectorAll('.channel-item').forEach(c => c.classList.remove('active'));
-        item.classList.add('active');
-
-        currentRoom = room;
-        document.querySelector('.header-channel').textContent = `# ${room}`;
-        promptUser.parentElement.querySelector('.path').textContent = `~/#${room}`;
-
-        clearMessages();
-        socket.emit('switchroom', { room });
+        selectRoom(room, item);
         });
     });
 
@@ -200,11 +255,20 @@
         clearMessages();
         appendMessage('system', 'Message history cleared.');
         } else if (c === '/help') {
-        appendMessage('system', 'Commands: /help &nbsp;/users &nbsp;/clear &nbsp;/status');
+        appendMessage('system', 'Commands: /help &nbsp;/users &nbsp;/clear &nbsp;/status &nbsp;/theme [dark|light|dracula]');
         } else if (c === '/users') {
         socket.emit('getusers');
         } else if (c === '/status') {
-        appendMessage('system', `${sanitize(userName)} — status: <span class="sys-green">online</span> | room: #${currentRoom} | ${getTime()}`);
+        appendMessage('system', `${sanitize(userName)} — status: <span class="sys-green">online</span> | room: ${formatRoomLabel(currentRoom)} | ${getTime()}`);
+        } else if (c.startsWith('/theme')) {
+        const parts = c.split(' ');
+        const theme = parts[1];
+        if (theme && ['dark', 'light', 'dracula'].includes(theme)) {
+            applyTheme(theme);
+            appendMessage('system', `Theme set to ${theme}.`);
+        } else {
+            appendMessage('system', 'Usage: /theme dark | light | dracula');
+        }
         } else {
         appendMessage('system', `Unknown command: <span style="color:var(--red)">${sanitize(cmd)}</span>. Try /help`);
         }
@@ -237,6 +301,9 @@
         clearMessages();
         userName = joinInput.value.trim() || userName;
         promptUser.textContent = userName;
+        document.querySelector('.header-channel').textContent = formatRoomLabel(currentRoom);
+        document.querySelector('.header-desc').textContent = formatRoomDescription(currentRoom);
+        promptUser.parentElement.querySelector('.path').textContent = `~/${formatRoomLabel(currentRoom)}`;
 
         joinOverlay.style.opacity    = '0';
         joinOverlay.style.transition = 'opacity 0.3s';
@@ -255,13 +322,12 @@
     });
 
     socket.on('chat', function (message) {
-        if (document.hidden) {
-            const badge = document.querySelector(".dot-badge");
-
-            badge.classList.add("active");
-            badge.style.display = "block";
-        }
         appendMessage('msg', message, message.timestamp);
+    });
+
+    socket.on('roomnotify', function ({ room }) {
+        if (!room || room === currentRoom) return;
+        incrementUnread(room);
     });
 
     socket.on('update', function (text) {
@@ -281,6 +347,27 @@
         el.className = 'user-pill';
         el.innerHTML = `<span class="status-dot online"></span> ${sanitize(n)}`;
         panel.appendChild(el);
+        });
+    });
+
+    socket.on('globalonline', function(names){
+        const dmList = document.getElementById('dm-list');
+        if (!dmList) return;
+
+        const others = names.filter(n => n && n !== userName);
+        dmList.innerHTML = others.map(n => `
+            <div class="channel-item dm-item" data-dm="${n}" data-room="${getDmRoom(userName, n)}">
+                <span style="color:var(--green-dim);font-size:10px;">▶</span> ${sanitize(n)}
+            </div>
+        `).join('');
+
+        dmList.querySelectorAll('.dm-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const peer = item.dataset.dm;
+            if (!peer) return;
+            const room = getDmRoom(userName, peer);
+            selectRoom(room, item);
+        });
         });
     });
 

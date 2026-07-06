@@ -45,12 +45,8 @@ const seedRoom = db.prepare(
 ].forEach(([name, desc]) => seedRoom.run(name, desc));
 
 function registerUser(username) {
-    try {
-        db.prepare("INSERT INTO users (username) VALUES (?)").run(username);
-        return true;
-    } catch {
-        return false;
-    }
+    db.prepare("INSERT OR IGNORE INTO users (username) VALUES (?)").run(username);
+    return true;
 }
 
 function removeUser(username) {
