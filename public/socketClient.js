@@ -1,4 +1,4 @@
-import { appendMessage, clearMessages, showTyping, updateReactionBar, sanitize } from "./ui.js";
+import { appendMessage, clearMessages, showTyping, updateReactionBar, sanitize, renderMessageText } from "./ui.js";
 import { getDmRoom, formatRoomLabel, formatRoomDescription } from "./ui.js";
 
 export function setupSocket(socket, state) {
@@ -32,6 +32,22 @@ export function setupSocket(socket, state) {
 
     socket.on('reaction_update', function ({ messageId, reactions }) {
         updateReactionBar(messageId, reactions);
+    });
+
+    socket.on('thread_update', function ({ parentId, replyCount }) {
+        state.updateThreadCount?.(parentId, replyCount);
+    });
+
+    socket.on('replies', function ({ parent, replies }) {
+        state.renderThread?.(parent, replies);
+    });
+
+    socket.on('search_results', function ({ term, results }) {
+        state.renderSearchResults?.(term, results);
+    });
+
+    socket.on('mention', function (payload) {
+        state.showMention?.(payload);
     });
 
     socket.on('roomnotify', function ({ room }) {

@@ -19,7 +19,13 @@ export function renderMessageText(text) {
     let html = sanitize(text);
     html = html.replace(/```([\s\S]*?)```/g, '<pre class="code-block">$1</pre>');
     html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    html = html.replace(/@([a-zA-Z0-9_]{2,20})/g, '<span class="mention">@$1</span>');
     return html;
+}
+
+export function formatThreadLabel(count) {
+    if (!count) return 'reply';
+    return `${count} repl${count === 1 ? 'y' : 'ies'}`;
 }
 
 export function formatRoomLabel(room, username) {
@@ -117,10 +123,32 @@ export function appendMessage(type, data, timestamp) {
             <div class="msg-body">
                 <div class="msg-name ${colorClass}">${sanitize(data.username)}</div>
                 <div class="msg-text">${renderMessageText(data.text)}</div>
+                <div class="msg-meta">
+                    <div class="msg-actions">
+                        <button type="button" class="reply-button" data-parent-id="${data.id}">reply</button>
+                        ${data.reply_count ? `<button type="button" class="thread-toggle" data-parent-id="${data.id}">${formatThreadLabel(data.reply_count)}</button>` : ''}
+                    </div>
+                </div>
             </div>`;
 
         const reactionBar = renderReactionBar(data);
         row.appendChild(reactionBar);
+    }
+
+    if (data.parent_id) {
+        const parentRow = messages.querySelector(`.msg-row[data-message-id="${data.parent_id}"]`);
+        if (parentRow) {
+            let replies = parentRow.nextElementSibling;
+            if (!replies || !replies.classList.contains('reply-list')) {
+                replies = document.createElement('div');
+                replies.className = 'reply-list';
+                parentRow.after(replies);
+            }
+            replies.appendChild(row);
+            parentRow.classList.add('has-replies');
+            parentRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+        }
     }
 
     messages.appendChild(row);

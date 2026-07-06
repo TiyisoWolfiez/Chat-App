@@ -1,4 +1,4 @@
-const { saveMessage, getHistory, registerUser, removeUser, getMessageById, toggleReaction } = require("./db");
+const { saveMessage, getHistory, registerUser, removeUser, getMessageById, toggleReaction, getReplies, searchMessages } = require("./db");
 
 const users = new Map();
 const DEFAULT_ROOMS = ["general", "dev-chat", "random", "design"];
@@ -7,6 +7,11 @@ function getTime() {
     return new Date().toLocaleTimeString("en-GB", {
         hour: "2-digit", minute: "2-digit", second: "2-digit"
     });
+}
+
+function extractMentions(text) {
+    const matches = [...text.matchAll(/@([a-zA-Z0-9_]{2,20})/g)];
+    return [...new Set(matches.map((m) => m[1]))];
 }
 
 function createDmRoom(userA, userB) {
@@ -130,9 +135,77 @@ function initSocketHandlers(io) {
             const { room } = socket.data;
             if (!room || !username || !text.trim()) return;
 
-            const savedMessage = saveMessage({ room, username, text: text.trim(), type: "chat" });
+            const trimmed = text.trim();
+            const savedMessage = saveMessage({ room, username, text: trimmed, type: "chat" });
             io.to(room).emit("chat", savedMessage);
             io.emit("roomnotify", { room });
+
+            const mentions = extractMentions(trimmed).filter((name) => name !== username);
+            mentions.forEach((mention) => {
+                const socketId = users.get(mention);
+                if (socketId) {
+                    io.to(socketId).emit("mention", {
+                        messageId: savedMessage.id,
+                        from: username,
+                        room,
+                        text: trimmed,
+                        parentId: savedMessage.parent_id || null,
+                    });
+                }
+            });
+        });
+
+        socket.on("reply", function ({ parentId, text }) {
+            const { room, username } = socket.data;
+            if (!room || !username || !parentId || !text.trim()) return;
+
+            const trimmed = text.trim();
+            const parent = getMessageById(parentId);
+            if (!parent || parent.room !== room) return;
+
+            const savedMessage = saveMessage({ room, username, text: trimmed, type: "chat", parent_id: parentId });
+            io.to(room).emit("chat", savedMessage);
+            io.to(room).emit("thread_update", {
+                parentId,
+                replyCount: getReplies(parentId, username).length,
+                lastReplyId: savedMessage.id,
+            });
+            io.emit("roomnotify", { room });
+
+            const mentions = extractMentions(trimmed).filter((name) => name !== username);
+            mentions.forEach((mention) => {
+                const socketId = users.get(mention);
+                if (socketId) {
+                    io.to(socketId).emit("mention", {
+                        messageId: savedMessage.id,
+                        from: username,
+                        room,
+                        text: trimmed,
+                        parentId,
+                    });
+                }
+            });
+        });
+
+        socket.on("getReplies", function ({ parentId }) {
+            const { room, username } = socket.data;
+            if (!room || !username || !parentId) return;
+            const parent = getMessageById(parentId);
+            if (!parent || parent.room !== room) return;
+
+            socket.emit("replies", {
+                parent,
+                replies: getReplies(parentId, username),
+            });
+        });
+
+        socket.on("search", function ({ term }) {
+            const { room, username } = socket.data;
+            if (!room || !username || typeof term !== 'string') return;
+            socket.emit("search_results", {
+                term,
+                results: searchMessages(room, username, term, 50),
+            });
         });
 
         socket.on("react", function ({ messageId, emoji }) {

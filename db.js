@@ -27,6 +27,7 @@ db.exec(`
         username    TEXT    NOT NULL,
         text        TEXT    NOT NULL,
         type        TEXT    NOT NULL DEFAULT 'chat',   -- 'chat' | 'system'
+        parent_id   INTEGER REFERENCES messages(id) ON DELETE CASCADE,
         created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -62,13 +63,17 @@ function removeUser(username) {
     db.prepare("DELETE FROM users WHERE username = ?").run(username);
 }
 
+const messageColumns = db.prepare("PRAGMA table_info(messages)").all();
+if (!messageColumns.some((col) => col.name === 'parent_id')) {
+    db.exec("ALTER TABLE messages ADD COLUMN parent_id INTEGER");
+}
 
-function saveMessage({ room, username, text, type = "chat" }) {
+function saveMessage({ room, username, text, type = "chat", parent_id = null }) {
     const stmt = db.prepare(`
-        INSERT INTO messages (room, username, text, type)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO messages (room, username, text, type, parent_id)
+        VALUES (?, ?, ?, ?, ?)
     `);
-    const info = stmt.run(room, username, text, type);
+    const info = stmt.run(room, username, text, type, parent_id);
 
     return db.prepare("SELECT * FROM messages WHERE id = ?").get(info.lastInsertRowid);
 }
@@ -76,12 +81,16 @@ function saveMessage({ room, username, text, type = "chat" }) {
 function getHistory(room, username = '', limit = 50) {
     const messages = db
         .prepare(`
-        SELECT * FROM (
+        SELECT m.*, (
+            SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id
+        ) AS reply_count
+        FROM (
             SELECT * FROM messages
-            WHERE room = ?
+            WHERE room = ? AND parent_id IS NULL
             ORDER BY created_at DESC
             LIMIT ?
-        ) ORDER BY created_at ASC
+        ) AS m
+        ORDER BY m.created_at ASC
         `)
         .all(room, limit);
 
@@ -91,9 +100,9 @@ function getHistory(room, username = '', limit = 50) {
     const placeholders = ids.map(() => '?').join(',');
     const reactionRows = db.prepare(`
         SELECT message_id,
-               emoji,
-               COUNT(*) AS count,
-               SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
+                emoji,
+                COUNT(*) AS count,
+                SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
         FROM message_reactions
         WHERE message_id IN (${placeholders})
         GROUP BY message_id, emoji
@@ -113,6 +122,96 @@ function getHistory(room, username = '', limit = 50) {
         ...m,
         reactions: reactionMap[m.id] || [],
     }));
+}
+
+function getReplies(parentId, username = '') {
+    const replies = db.prepare(`
+        SELECT m.*,
+                (
+                    SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id
+                ) AS reply_count
+        FROM messages m
+        WHERE parent_id = ?
+        ORDER BY created_at ASC
+    `).all(parentId);
+
+    if (!replies.length) return replies;
+
+    const ids = replies.map((m) => m.id);
+    const placeholders = ids.map(() => '?').join(',');
+    const reactionRows = db.prepare(`
+        SELECT message_id,
+                emoji,
+                COUNT(*) AS count,
+                SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
+        FROM message_reactions
+        WHERE message_id IN (${placeholders})
+        GROUP BY message_id, emoji
+    `).all(username, ...ids);
+
+    const reactionMap = {};
+    reactionRows.forEach((row) => {
+        if (!reactionMap[row.message_id]) reactionMap[row.message_id] = [];
+        reactionMap[row.message_id].push({
+            emoji: row.emoji,
+            count: row.count,
+            mine: !!row.mine,
+        });
+    });
+
+    return replies.map((m) => ({
+        ...m,
+        reactions: reactionMap[m.id] || [],
+    }));
+}
+
+function searchMessages(room, username = '', term = '', limit = 50) {
+    if (!term || !term.trim()) return [];
+    const q = `%${term.trim().toLowerCase()}%`;
+    const results = db.prepare(`
+        SELECT m.*,
+                (
+                    SELECT COUNT(*) FROM messages r WHERE r.parent_id = m.id
+                ) AS reply_count
+        FROM messages m
+        WHERE room = ?
+            AND (LOWER(text) LIKE ? OR LOWER(username) LIKE ?)
+        ORDER BY created_at DESC
+        LIMIT ?
+    `).all(room, q, q, limit);
+
+    if (!results.length) return results;
+
+    const ids = results.map((m) => m.id);
+    const placeholders = ids.map(() => '?').join(',');
+    const reactionRows = db.prepare(`
+        SELECT message_id,
+                emoji,
+                COUNT(*) AS count,
+                SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
+        FROM message_reactions
+        WHERE message_id IN (${placeholders})
+        GROUP BY message_id, emoji
+    `).all(username, ...ids);
+
+    const reactionMap = {};
+    reactionRows.forEach((row) => {
+        if (!reactionMap[row.message_id]) reactionMap[row.message_id] = [];
+        reactionMap[row.message_id].push({
+            emoji: row.emoji,
+            count: row.count,
+            mine: !!row.mine,
+        });
+    });
+
+    return results.map((m) => ({
+        ...m,
+        reactions: reactionMap[m.id] || [],
+    }));
+}
+
+function getReplyCount(parentId) {
+    return db.prepare("SELECT COUNT(*) AS count FROM messages WHERE parent_id = ?").get(parentId).count;
 }
 
 function getMessageById(id) {
@@ -135,8 +234,8 @@ function toggleReaction(messageId, username, emoji) {
     return db
         .prepare(`
             SELECT emoji,
-                   COUNT(*) AS count,
-                   SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
+                    COUNT(*) AS count,
+                    SUM(CASE WHEN username = ? THEN 1 ELSE 0 END) AS mine
             FROM message_reactions
             WHERE message_id = ?
             GROUP BY emoji
@@ -158,6 +257,9 @@ module.exports = {
     removeUser,
     saveMessage,
     getHistory,
+    getReplies,
+    searchMessages,
+    getReplyCount,
     getRooms,
     getMessageById,
     toggleReaction,

@@ -1,4 +1,4 @@
-import { appendMessage, clearMessages, showTyping, updateReactionBar, formatRoomLabel, formatRoomDescription, applyTheme } from './ui.js';
+import { appendMessage, clearMessages, showTyping, updateReactionBar, formatRoomLabel, formatRoomDescription, applyTheme, sanitize, renderMessageText } from './ui.js';
 import { setupSocket } from './socketClient.js';
 import { handleCommand } from './commands.js';
 
@@ -9,9 +9,15 @@ const savedTheme = localStorage.getItem('chatos_theme') || 'dark';
 const state = {
     userName: '',
     currentRoom: 'general',
+    pendingReplyTo: null,
+    activeThread: null,
     incrementUnread: null,
     selectRoom: null,
     showJoinError: null,
+    showMention: null,
+    renderThread: null,
+    renderSearchResults: null,
+    updateThreadCount: null,
     joinOverlay: null,
     joinInput: null,
     promptUser: null,
@@ -19,6 +25,10 @@ const state = {
     headerDesc: null,
     pathLabel: null,
     msgInput: null,
+    searchInput: null,
+    searchBtn: null,
+    mentionBanner: null,
+    threadContext: null,
 };
 
 let unreadCounts = {
@@ -29,6 +39,10 @@ let unreadCounts = {
 };
 
 const messages = document.getElementById('messages');
+const searchInput = document.getElementById('search-input');
+const searchBtn = document.getElementById('search-btn');
+const mentionBanner = document.getElementById('mention-banner');
+const threadContext = document.getElementById('thread-context');
 const typingBar = document.getElementById('typing-bar');
 const typingText = document.getElementById('typing-text');
 const promptUser = document.getElementById('prompt-user');
@@ -48,6 +62,10 @@ Object.assign(state, {
     headerDesc,
     pathLabel,
     msgInput,
+    searchInput,
+    searchBtn,
+    mentionBanner,
+    threadContext,
 });
 
 function incrementUnread(room) {
@@ -118,6 +136,8 @@ function selectRoom(room, item = null) {
 
     clearUnread(room);
     clearMessages();
+    state.clearThreadContext?.();
+    state.searchInput.value = '';
     socket.emit('switchroom', { room });
 }
 
@@ -129,15 +149,22 @@ function sendMsg() {
         const result = handleCommand(val, state.userName, state.currentRoom, socket);
         state.msgInput.value = '';
         if (result.action === 'clear') {
-        clearMessages();
-        appendMessage('system', result.text);
+            clearMessages();
+            appendMessage('system', result.text);
         } else if (result.action === 'message') {
-        appendMessage('system', result.text);
+            appendMessage('system', result.text);
         }
         return;
     }
 
-    socket.emit('chat', { username: state.userName, text: val });
+    if (state.pendingReplyTo) {
+        socket.emit('reply', { parentId: state.pendingReplyTo, text: val });
+        state.pendingReplyTo = null;
+        state.msgInput.placeholder = 'type a message...';
+    } else {
+        socket.emit('chat', { username: state.userName, text: val });
+    }
+
     state.msgInput.value = '';
 }
 
@@ -167,6 +194,72 @@ function setupUI() {
         chip.addEventListener('click', () => { msgInput.value = chip.textContent; msgInput.focus(); });
     });
 
+    searchBtn.addEventListener('click', () => {
+        const term = state.searchInput.value.trim();
+        if (!term) return;
+        socket.emit('search', { term });
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const term = state.searchInput.value.trim();
+            if (!term) return;
+            socket.emit('search', { term });
+        }
+    });
+
+    messages.addEventListener('click', (event) => {
+        const button = event.target.closest('.reaction-btn');
+        if (button) {
+            const messageId = Number(button.dataset.messageId);
+            const emoji = button.dataset.emoji;
+            if (messageId && emoji) {
+                socket.emit('react', { messageId, emoji });
+            }
+            return;
+        }
+
+        const replyBtn = event.target.closest('.reply-button');
+        if (replyBtn) {
+            const parentId = Number(replyBtn.dataset.parentId);
+            if (parentId) {
+                state.pendingReplyTo = parentId;
+                state.msgInput.placeholder = `replying to #${parentId}...`;
+                state.msgInput.focus();
+            }
+            return;
+        }
+
+        const threadBtn = event.target.closest('.thread-toggle');
+        if (threadBtn) {
+            const parentId = Number(threadBtn.dataset.parentId);
+            if (parentId) {
+                socket.emit('getReplies', { parentId });
+            }
+            return;
+        }
+
+        const row = event.target.closest('.msg-row');
+        if (row && !event.target.closest('.reaction-btn') && !event.target.closest('.reply-button') && !event.target.closest('.thread-toggle')) {
+            document.querySelectorAll('.msg-row.touch-active').forEach((other) => other.classList.remove('touch-active'));
+            row.classList.add('touch-active');
+        }
+    });
+
+    state.threadContext.addEventListener('click', (event) => {
+        const closeThreadBtn = event.target.closest('.thread-close');
+        if (closeThreadBtn) {
+            state.clearThreadContext?.();
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.msg-row')) {
+            document.querySelectorAll('.msg-row.touch-active').forEach((row) => row.classList.remove('touch-active'));
+        }
+    });
+
     document.getElementById('exit-btn').addEventListener('click', () => {
         if (!state.userName) return;
         socket.emit('exituser', state.userName);
@@ -180,31 +273,86 @@ function setupUI() {
 
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
-        const badge = document.querySelector('.dot-badge');
-        badge.classList.remove('active');
-        badge.style.display = 'none';
+            const badge = document.querySelector('.dot-badge');
+            if (badge) {
+                badge.classList.remove('active');
+                badge.style.display = 'none';
+            }
+            state.clearThreadContext?.();
         }
     });
-
-    messages.addEventListener('click', (event) => {
-        const button = event.target.closest('.reaction-btn');
-        if (!button) return;
-
-        const messageId = Number(button.dataset.messageId);
-        const emoji = button.dataset.emoji;
-        if (!messageId || !emoji) return;
-
-        socket.emit('react', { messageId, emoji });
-    });
+    state.mentionBanner.hidden = false;
+    state.mentionBanner.classList.add('visible');
+    setTimeout(() => {
+        state.mentionBanner.classList.remove('visible');
+        state.mentionBanner.hidden = true;
+    }, 5500);
 }
 
-Object.assign(state, {
-    incrementUnread,
-    selectRoom,
-    showJoinError,
-    });
+function renderThreadPanel(parent, replies) {
+    if (!parent) {
+        state.threadContext.classList.add('hidden');
+        state.threadContext.innerHTML = '';
+        state.activeThread = null;
+        return;
+    }
 
-    function runBoot() {
+    state.activeThread = parent.id;
+    const header = `
+        <div class="thread-panel-header">
+            <div>
+                <span class="thread-title">Thread for #${parent.id}</span>
+                <span class="thread-owner">@${parent.username}</span>
+            </div>
+            <button type="button" class="thread-close">close</button>
+        </div>`;
+
+    const parentMessage = `
+        <div class="thread-parent">
+            <div class="thread-name">@${sanitize(parent.username)}</div>
+            <div class="thread-text">${renderMessageText(parent.text)}</div>
+        </div>`;
+
+    const replyList = replies.length ? replies.map((reply) => `
+            <div class="thread-reply">
+                <div class="thread-name">@${sanitize(reply.username)}</div>
+                <div class="thread-text">${renderMessageText(reply.text)}</div>
+            </div>
+        `).join('') : '<div class="thread-empty">No replies yet. Hit reply on a message to start one.</div>';
+
+    state.threadContext.innerHTML = `${header}${parentMessage}<div class="thread-replies">${replyList}</div>`;
+    state.threadContext.classList.remove('hidden');
+}
+
+function clearThreadContext() {
+    state.activeThread = null;
+    state.threadContext.classList.add('hidden');
+    state.threadContext.innerHTML = '';
+}
+
+function showMention(payload) {
+    if (!payload) return;
+    state.mentionBanner.textContent = `Mentioned by @${payload.from}: ${payload.text}`;
+    state.mentionBanner.hidden = false;
+    state.mentionBanner.classList.add('visible');
+    setTimeout(() => {
+        state.mentionBanner.classList.remove('visible');
+        state.mentionBanner.hidden = true;
+    }, 5500);
+}
+
+function renderSearchResults(term, results) {
+    if (typeof term === 'string' && term.trim() === '') {
+        return;
+    }
+
+    clearMessages();
+    appendMessage('system', `search results for "${term}" (${results?.length ?? 0})`);
+    if (!results || !results.length) return;
+    results.reverse().forEach((m) => appendMessage('msg', m, m.timestamp || m.created_at));
+}
+
+function runBoot() {
     const bootLines = ['bl0','bl1','bl2','bl3','bl4','bl5'];
     const logo = document.getElementById('boot-logo');
     const bootScreen = document.getElementById('boot-screen');
@@ -232,6 +380,14 @@ Object.assign(state, {
     incrementUnread,
     selectRoom,
     showJoinError,
+    showMention,
+    renderThread: renderThreadPanel,
+    renderSearchResults,
+    updateThreadCount: function (parentId, replyCount) {
+        const btn = document.querySelector(`.thread-toggle[data-parent-id="${parentId}"]`);
+        if (btn) btn.textContent = `${replyCount || 0} repl${replyCount === 1 ? 'y' : 'ies'}`;
+    },
+    clearThreadContext,
 });
 setupSocket(socket, state);
 if (savedUser) { state.joinInput.value = savedUser; doJoin(); }
