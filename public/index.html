@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0B0B0B">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ChatOS">
     <title>ChatOS</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,7 +32,7 @@
     <div id="app-main">
 
         <!-- Icon sidebar -->
-        <div id="sidebar">
+        <!-- <div id="sidebar">
         <div class="sidebar-icon active" title="General">GN</div>
         <div class="sidebar-icon" title="Dev">DV<div class="dot-badge"></div></div>
         <div class="sidebar-sep"></div>
@@ -35,7 +40,7 @@
         <div class="sidebar-icon" title="Gaming">GM</div>
         <div class="sidebar-spacer"></div>
         <div class="sidebar-icon" style="font-size:14px;" title="Settings">⚙</div>
-        </div>
+        </div> -->
 
         <!-- Channels panel -->
         <div id="channels-panel">
@@ -64,8 +69,8 @@
             <span class="header-sep">|</span>
             <span class="header-desc">main chat — be excellent to each other</span>
             <div class="header-actions">
-            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/users'; document.getElementById('msg-input').focus()">⌘ users</button>
-            <button class="hdr-btn" onclick="document.getElementById('msg-input').value='/clear'; document.getElementById('msg-input').focus()">⌫ clear</button>
+            <button class="hdr-btn mobile-visible" onclick="document.getElementById('msg-input').value='/users'; document.getElementById('msg-input').focus()">⌘ users</button>
+            <button class="hdr-btn mobile-visible" onclick="document.getElementById('msg-input').value='/clear'; document.getElementById('msg-input').focus()">⌫ clear</button>
             <button class="hdr-btn" id="exit-btn">⎋ exit</button>
             </div>
         </div>

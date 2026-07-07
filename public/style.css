@@ -690,3 +690,484 @@ body {
 .name-green { color: var(--green); }
 .name-blue  { color: var(--blue); }
 .name-red   { color: var(--red); }
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* ──────────────── MOBILE RESPONSIVE STYLES ──────────────────── */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Tablet: 768px and below */
+@media (max-width: 768px) {
+    /* Hide sidebar on tablets, show toggle button */
+    #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 56px;
+        height: 100vh;
+        z-index: 40;
+        transition: transform 0.3s ease;
+    }
+
+    #sidebar.hidden {
+        transform: translateX(-100%);
+    }
+
+    /* Adjust channels panel for tablets */
+    #channels-panel {
+        width: 160px;
+    }
+
+    /* Add mobile nav toggle button */
+    #mobile-nav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--muted2);
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.15s;
+    }
+
+    #mobile-nav-toggle:hover {
+        color: var(--amber);
+        border-color: var(--amber-dim);
+        background: var(--surface);
+    }
+
+    /* Adjust header for tablets */
+    #chat-header {
+        padding: 0 12px;
+        gap: 8px;
+    }
+
+    .header-channel { font-size: 11px; }
+    .header-desc { display: none; }
+    .header-actions { gap: 6px; }
+
+    .hdr-btn {
+        font-size: 9px;
+        padding: 2px 8px 2px 14px;
+    }
+
+    /* Adjust search panel */
+    #search-panel {
+        padding: 8px 12px;
+    }
+
+    .search-box input {
+        font-size: 11px;
+        padding: 6px 8px;
+    }
+
+    .search-box button {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+
+    /* Adjust messages */
+    #messages {
+        padding: 8px 0;
+    }
+
+    .msg-row {
+        padding: 2px 12px;
+        gap: 8px;
+    }
+
+    .msg-ts { font-size: 8px; min-width: 48px; }
+    .msg-name { font-size: 9px; }
+    .msg-text { font-size: 11px; }
+
+    /* Adjust input area */
+    #input-area {
+        padding: 8px 12px;
+    }
+
+    .prompt-label {
+        font-size: 10px;
+        padding: 8px 6px 8px 10px;
+    }
+
+    #msg-input {
+        font-size: 11px;
+        padding: 8px 0;
+    }
+
+    .cmd-hint {
+        gap: 6px;
+        margin-top: 4px;
+    }
+
+    .cmd-chip {
+        font-size: 8px;
+        padding: 1px 4px;
+    }
+}
+
+/* Mobile: 480px and below */
+@media (max-width: 480px) {
+    body {
+        font-size: 14px; /* Prevent iOS zoom */
+    }
+
+    /* Full width mobile layout */
+    #app-main {
+        flex-direction: row;
+    }
+
+    /* Hide sidebar by default on mobile */
+    #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 56px;
+        height: 100vh;
+        z-index: 40;
+        transform: translateX(-100%);
+        background: #0D0D0D;
+        border-right: 1px solid var(--border);
+    }
+
+    #sidebar.visible {
+        transform: translateX(0);
+        box-shadow: 0 0 16px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Mobile overlay backdrop for sidebar */
+    #sidebar.visible::after {
+        content: '';
+        position: fixed;
+        left: 56px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: -1;
+    }
+
+    /* Hide channels panel on mobile */
+    #channels-panel {
+        display: none;
+    }
+
+    #channels-panel.mobile-visible {
+        position: fixed;
+        left: 0;
+        top: 44px;
+        width: 280px;
+        height: calc(100vh - 44px);
+        z-index: 30;
+        display: flex;
+        border-right: 1px solid var(--border);
+        box-shadow: 0 0 16px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Mobile channels panel overlay backdrop */
+    .channels-overlay-bg {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 25;
+        display: none;
+    }
+
+    .channels-overlay-bg.visible {
+        display: block;
+    }
+
+    /* Full width chat area on mobile */
+    #chat-area {
+        flex: 1;
+        width: 100%;
+    }
+
+    /* Mobile header adjustments */
+    #chat-header {
+        height: 44px;
+        padding: 0 12px;
+        gap: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .header-channel { font-size: 11px; }
+    .header-sep { display: none; }
+    .header-desc { display: none; }
+
+    .header-actions {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    /* Add mobile menu button in header */
+    .mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--muted2);
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.15s;
+        flex-shrink: 0;
+    }
+
+    .mobile-menu-btn:active {
+        color: var(--amber);
+        border-color: var(--amber);
+        background: rgba(245, 185, 66, 0.1);
+    }
+
+    /* Hide full header actions on mobile */
+    .hdr-btn {
+        display: none;
+    }
+
+    .hdr-btn.mobile-visible {
+        display: inline-block;
+        font-size: 9px;
+        padding: 4px 8px 4px 12px;
+    }
+
+    /* Responsive search panel */
+    #search-panel {
+        padding: 8px 10px;
+        gap: 4px;
+    }
+
+    .search-box {
+        gap: 6px;
+    }
+
+    .search-box input {
+        font-size: 11px;
+        padding: 6px 8px;
+        border-radius: 6px;
+    }
+
+    .search-box button {
+        padding: 6px 8px;
+        font-size: 10px;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
+
+    /* Thread context on mobile */
+    .thread-context {
+        padding: 10px;
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+    .thread-panel-header {
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .thread-title { font-size: 10px; }
+    .thread-owner { font-size: 9px; }
+    .thread-close { padding: 4px 8px; font-size: 9px; }
+
+    /* Messages on mobile */
+    #messages {
+        padding: 8px 0;
+        gap: 1px;
+    }
+
+    .msg-row {
+        padding: 2px 10px;
+        gap: 6px;
+    }
+
+    .msg-ts {
+        font-size: 8px;
+        min-width: 40px;
+        display: none; /* Hide timestamps on very small screens */
+    }
+
+    .msg-body {
+        flex: 1;
+    }
+
+    .msg-name {
+        font-size: 9px;
+        margin-bottom: 1px;
+    }
+
+    .msg-text {
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .code-block {
+        padding: 8px;
+        font-size: 10px;
+        margin: 6px 0;
+    }
+
+    .msg-text code {
+        font-size: 10px;
+        padding: 1px 3px;
+    }
+
+    /* Reaction bar on mobile */
+    .reaction-bar {
+        gap: 4px;
+        margin-top: 6px;
+    }
+
+    .reaction-btn {
+        padding: 3px 6px;
+        font-size: 10px;
+    }
+
+    /* Message actions on mobile */
+    .msg-actions {
+        gap: 4px;
+        margin-top: 6px;
+    }
+
+    .reply-button,
+    .thread-toggle {
+        padding: 3px 6px;
+        font-size: 9px;
+    }
+
+    /* Typing indicator on mobile */
+    .typing-indicator {
+        padding: 2px 10px;
+        font-size: 9px;
+    }
+
+    .typing-dots span {
+        width: 2px;
+        height: 2px;
+        margin: 0 0.5px;
+    }
+
+    /* Input area on mobile */
+    #input-area {
+        padding: 8px 10px;
+        border-top: 1px solid var(--border);
+    }
+
+    .input-prompt {
+        border-radius: 6px;
+        padding: 0 8px 0 0;
+    }
+
+    .prompt-label {
+        font-size: 9px;
+        padding: 8px 6px 8px 10px;
+        border-radius: 4px 0 0 4px;
+        margin-right: 6px;
+    }
+
+    .prompt-label .sep {
+        margin: 0 2px;
+    }
+
+    #msg-input {
+        font-size: 12px;
+        padding: 8px 6px;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    #send-btn {
+        padding: 6px 8px;
+        font-size: 9px;
+        flex-shrink: 0;
+    }
+
+    .cmd-hint {
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    .cmd-chip {
+        font-size: 8px;
+        padding: 2px 4px;
+    }
+
+    /* Join card on mobile */
+    .join-card {
+        width: 90%;
+        max-width: 280px;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .jc-label { font-size: 8px; margin-bottom: 12px; }
+    .jc-title { font-size: 14px; margin-bottom: 3px; }
+    .jc-sub { font-size: 9px; margin-bottom: 16px; }
+
+    .join-card input {
+        font-size: 12px;
+        padding: 8px 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+    }
+
+    .join-card button {
+        font-size: 12px;
+        padding: 10px 0;
+        border-radius: 4px;
+    }
+
+    /* Improve touch targets */
+    button, .cmd-chip {
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    input {
+        min-height: 44px;
+    }
+
+    /* Prevent double tap zoom on buttons */
+    button, a, input[type="button"], input[type="submit"] {
+        touch-action: manipulation;
+    }
+}
+
+/* Extra small screens: 320px and below */
+@media (max-width: 320px) {
+    .header-channel {
+        font-size: 10px;
+    }
+
+    .msg-text {
+        font-size: 11px;
+    }
+
+    #msg-input {
+        font-size: 11px;
+    }
+
+    .prompt-label {
+        display: none;
+    }
+
+    .input-prompt {
+        padding: 0;
+    }
+
+    .jc-title {
+        font-size: 13px;
+    }
+}
